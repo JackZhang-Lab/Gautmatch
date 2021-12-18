@@ -1,0 +1,69 @@
+#!/bin/tcsh -f
+
+#####**************************************************************************#####
+#Despcription: This program is used to display the particles picked by Gautomatch
+#Copyright: ©The Department of Molecular Biophysics and Biochemistry, Yale University
+#Author: Kai (Jack) Zhang,  jack.zhang@yale.edu
+#Last Edit: 2019-Oct-22
+#####**************************************************************************#####
+
+#global setup for output format
+set KBold="\x1b\x5b1m"
+set KDefault="\x1b\x5b0m"
+set KUnderline="\x1b\x5b4m"
+set KFlash="\x1b\x5b5m"
+
+#end of global setup
+
+set args = ${#argv}
+set Proc_name=`echo $0 | awk '{n=split($1,scr,"/");print scr[n];}'`
+
+
+if ( $args < 3 || $1 == '--help' || $1 == '-h' ) then
+
+      printf "${KBold}Despcription: ${KDefault}This program is used to display the particles picked by Gautomatch\n"
+      printf "${KBold}Usage:${KDefault}   $Proc_name <micrograph> <apix> <diameter> \n"
+      printf "apix: pixel size, angstrom per pixel\n"
+      printf "diameter: particles diameter in angstrom\n"
+      printf "${KBold}Example:${KDefault}   $Proc_name   micrograph001.mrc   1.33    280 \n"
+      printf "If you find Gautomatch and this script useful, please acknowledge Dr. Kai (Jack) Zhang \n"
+
+        exit(1)
+endif
+
+
+set screen_WH=`xdpyinfo | grep dimensions |awk '{n=split($2,scr,"x");print scr[1] " " scr[2];}' `
+set screen_W=$screen_WH[1]
+set screen_H=$screen_WH[2]
+
+#set screen_height=`xdpyinfo | grep dimensions |awk '{n=split($2,scr,"x");print scr[2];}' `
+
+
+set mic=$1
+set apix=$2
+set diameter=$3
+
+set coords=`echo $mic | sed 's/.mrc/_automatch.star/g' `
+set WoX_HoY=`mrchead $mic | gawk 'NR==2{WoX='$screen_W'/$3;  HoY='$screen_H'/$4; printf("%f  %f",WoX, HoY); }'`
+
+set min_WoX_HoY=`mrchead $mic | gawk 'NR==2{WoX='$screen_W'/$3;  HoY='$screen_H'/$4; if(WoX<HoY)printf("%f",0.9*WoX); else printf("%f",0.9*HoY); }'`
+#set mrcsize_X=$mrcsize_XY[1]
+#set mrcsize_Y=$mrcsize_XY[2]
+
+echo  $screen_W $screen_H $coords $WoX_HoY  $min_WoX_HoY
+
+
+
+set sig=3
+set lp=20
+set hp=2000
+set r=`echo $diameter $apix|gawk '{printf("%d", int(0.5*$1/$2));}' `
+
+#echo $mic $coords $min_WoX_HoY $sig r=$r $lp $hp $apix
+
+echo "relion_display --pick --i $mic --coords $coords --scale $min_WoX_HoY --black 0 --white 0 --sigma_contrast $sig --particle_radius $r --lowpass $lp --highpass $hp --angpix $apix"
+
+relion_display --pick --i $mic --coords $coords --scale $min_WoX_HoY --black 0 --white 0 --sigma_contrast $sig --particle_radius $r --lowpass $lp --highpass $hp --angpix $apix
+
+
+exit
